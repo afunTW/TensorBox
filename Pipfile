@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+runcython = ">=0.2.5"
+opencv-python = ">=3.2"
+scipy = ">=0.15.1"
+pillow = "==2.6.0"
+tqdm = "*"
+tensorflow-gpu = "==1.4.0"
+
+[dev-packages]
+
+[requires]
+python_version = "2.7"
