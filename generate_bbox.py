@@ -6,8 +6,7 @@ github repo - https://github.com/Russell91/TensorBox/tree/df3fca93f8eedf8314772f
 test usage:
 python generate_bbox.py \
     --gpu 0 \
-    --weights output/lstm_resnet_beetle_rezoom_2018_05_18_17.33/save.ckpt-1300000 \
-    --test-boxes data/images/val1.json \
+    --weights output/lstm_resnet_beetle_rezoom/save.ckpt-1300000 \
     --video-root data/test/ \
     --video-type mp4 \
     --skip-nframe 60
@@ -46,7 +45,6 @@ def argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', dest='weights')
     parser.add_argument('--expname', dest='expname', default='')
-    # parser.add_argument('--test-boxes', dest='test_boxes', required=True)
     parser.add_argument('--gpu', dest='gpu', required=True)
     parser.add_argument('--gpu-fraction', dest='gpu_fraction', default=0.45, type=float)
     parser.add_argument('--output-dir', dest='outputdir', default='output_video')
@@ -61,17 +59,6 @@ def argparser():
     parser.set_defaults(suppressed=True)
     parser.add_argument('--video-root', dest='video_root', required=True)
     return parser
-
-# def get_image_dir(W_path, expname, test_boxes_path):
-#     weights_iteration = int(W_path.split('-')[-1])
-#     expname = '_' + expname if expname else ''
-#     image_dir = '{}/images_{}_{}{}'.format(
-#         os.path.dirname(W_path),
-#         os.path.basename(test_boxes_path)[:-5],
-#         weights_iteration,
-#         expname
-#     )
-#     return image_dir
 
 def main(args, logger):
     # setup
@@ -118,10 +105,6 @@ def main(args, logger):
         saver.restore(sess, args.weights)
 
         pred_annolist = al.AnnoList()
-        # data_dir = os.path.dirname(args.test_boxes)
-        # image_dir = get_image_dir(args.weights, args.expname, args.test_boxes)
-        # if not os.path.exists(image_dir):
-        #     os.makedirs(image_dir)
 
         video_paths = []
         for d in os.listdir(args.video_root):
@@ -149,10 +132,11 @@ def main(args, logger):
             
             # video operation
             cap = cv2.VideoCapture(v)
-            total_frame = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-            fourcc = cv2.cv.CV_FOURCC(*'XVID')
+            total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            resolution = tuple(map(int, (cap.get(3), cap.get(4))))
             filename = 'detected_{}'.format(os.path.basename(v))
-            out = cv2.VideoWriter(os.path.join(outputdir, filename), fourcc, 15, (640, 480))
+            out = cv2.VideoWriter(os.path.join(outputdir, filename), fourcc, 15, resolution)
             
             data = []
             logger.info('total {} skip {}'.format(total_frame, args.skip_nframe))
@@ -178,7 +162,6 @@ def main(args, logger):
                 )
 
                 pred_anno.rects = rects
-                # pred_anno.imagePath = os.path.abspath(data_dir)
                 pred_anno = rescale_boxes(
                     (H["image_height"], H["image_width"]),
                     pred_anno,
