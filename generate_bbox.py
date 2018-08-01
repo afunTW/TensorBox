@@ -46,7 +46,7 @@ def argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', dest='weights')
     parser.add_argument('--expname', dest='expname', default='')
-    parser.add_argument('--test-boxes', dest='test_boxes', required=True)
+    # parser.add_argument('--test-boxes', dest='test_boxes', required=True)
     parser.add_argument('--gpu', dest='gpu', required=True)
     parser.add_argument('--gpu-fraction', dest='gpu_fraction', default=0.45, type=float)
     parser.add_argument('--output-dir', dest='outputdir', default='output_video')
@@ -62,16 +62,16 @@ def argparser():
     parser.add_argument('--video-root', dest='video_root', required=True)
     return parser
 
-def get_image_dir(W_path, expname, test_boxes_path):
-    weights_iteration = int(W_path.split('-')[-1])
-    expname = '_' + expname if expname else ''
-    image_dir = '{}/images_{}_{}{}'.format(
-        os.path.dirname(W_path),
-        os.path.basename(test_boxes_path)[:-5],
-        weights_iteration,
-        expname
-    )
-    return image_dir
+# def get_image_dir(W_path, expname, test_boxes_path):
+#     weights_iteration = int(W_path.split('-')[-1])
+#     expname = '_' + expname if expname else ''
+#     image_dir = '{}/images_{}_{}{}'.format(
+#         os.path.dirname(W_path),
+#         os.path.basename(test_boxes_path)[:-5],
+#         weights_iteration,
+#         expname
+#     )
+#     return image_dir
 
 def main(args, logger):
     # setup
@@ -85,8 +85,6 @@ def main(args, logger):
     with open(path_hypes_file, 'r') as f:
         H = json.load(f)
     expname = args.expname + '_' if args.expname else ''
-    pred_boxed = '{}.{}{}'.format(args.weights, expname, os.path.basename(args.test_boxes))
-    test_boxed = '{}.gt_{}{}'.format(args.weights, expname, os.path.basename(args.test_boxes))
 
     # graph
     tf.reset_default_graph()
@@ -120,10 +118,10 @@ def main(args, logger):
         saver.restore(sess, args.weights)
 
         pred_annolist = al.AnnoList()
-        data_dir = os.path.dirname(args.test_boxes)
-        image_dir = get_image_dir(args.weights, args.expname, args.test_boxes)
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
+        # data_dir = os.path.dirname(args.test_boxes)
+        # image_dir = get_image_dir(args.weights, args.expname, args.test_boxes)
+        # if not os.path.exists(image_dir):
+        #     os.makedirs(image_dir)
 
         video_paths = []
         for d in os.listdir(args.video_root):
@@ -180,7 +178,7 @@ def main(args, logger):
                 )
 
                 pred_anno.rects = rects
-                pred_anno.imagePath = os.path.abspath(data_dir)
+                # pred_anno.imagePath = os.path.abspath(data_dir)
                 pred_anno = rescale_boxes(
                     (H["image_height"], H["image_width"]),
                     pred_anno,
