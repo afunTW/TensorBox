@@ -1,7 +1,5 @@
-"""[summary] 
-github repo - https://github.com/Russell91/TensorBox/tree/df3fca93f8eedf8314772f28bd0b17f3d8bc6b7a
-
-* Make sure you are running by python2.7 + Opencv 2.4
+"""[summary]
+Modified from https://github.com/Russell91/TensorBox/tree/df3fca93f8eedf8314772f28bd0b17f3d8bc6b7a
 
 test usage:
 python generate_bbox.py \
@@ -23,7 +21,6 @@ import sys
 from tqdm import tqdm
 from glob import glob
 from datetime import datetime
-from pprint import pformat
 
 import tensorflow as tf
 
@@ -34,14 +31,6 @@ from utils.train_utils import add_rectangles, rescale_boxes
 
 
 def argparser():
-    """[summary]
-        --weights default used to
-            output/lstm_resnet_rezoom_beetle_2017_10_11_14.38/save.ckpt-1000000
-        --test_boxes default used to
-            data/beetle/val_boxes.json or data/images/val1.json
-        --video-root defautl used to
-            /data/put_data/kai/beetle or data/video/
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', dest='weights')
     parser.add_argument('--expname', dest='expname', default='')
@@ -106,14 +95,11 @@ def main(args, logger):
 
         pred_annolist = al.AnnoList()
 
-        video_paths = []
-        for d in os.listdir(args.video_root):
-            pattern = os.path.join(args.video_root, d, '*.{}'.format(args.video_type))
-            logger.info(pattern)
-            video_paths.extend(glob(pattern))
-
+        # get all video candidate
+        video_paths = glob(os.path.join(args.video_root,
+                                        '*.{}'.format(args.video_type)))
         for v in video_paths:
-            txtname = '.'.join(v.split('.')[:-1]) + '.txt'
+            txtname = '.'.join(v.split('.')[:-1]) + '_detection.txt'
             if os.path.isfile(txtname):
                 logger.info('{} existed, pass'.format(txtname))
                 continue
@@ -124,7 +110,7 @@ def main(args, logger):
                 '{}-skip-{}-count-{}'.format(
                     datetime.now().strftime('%Y%m%d'),
                     args.skip_nframe,
-                    args.frame_count
+                    args.frame_count or 'all'
                 )
             )
             if not os.path.exists(outputdir):
@@ -147,34 +133,37 @@ def main(args, logger):
                     logger.error('{} is close'.format(os.path.basename(v)))
                 ok, frame = cap.read()
                 
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image = cv2.resize(frame, (H['image_width'], H['image_height']))
-                (np_pred_boxes, np_pred_confidences) = sess.run(
-                    [pred_boxes, pred_confidences], feed_dict={X: image})
-                pred_anno = al.Annotation()
-                new_img, rects = add_rectangles(
-                    H, [image], np_pred_confidences, np_pred_boxes,
-                    use_stitching=True,
-                    rnn_len=H['rnn_len'],
-                    min_conf=args.min_conf,
-                    tau=args.tau,
-                    show_suppressed=args.suppressed
-                )
+                if ok:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    image = cv2.resize(frame, (H['image_width'], H['image_height']))
+                    (np_pred_boxes, np_pred_confidences) = sess.run(
+                        [pred_boxes, pred_confidences], feed_dict={X: image})
+                    pred_anno = al.Annotation()
+                    new_img, rects = add_rectangles(
+                        H, [image], np_pred_confidences, np_pred_boxes,
+                        use_stitching=True,
+                        rnn_len=H['rnn_len'],
+                        min_conf=args.min_conf,
+                        tau=args.tau,
+                        show_suppressed=args.suppressed
+                    )
 
-                pred_anno.rects = rects
-                pred_anno = rescale_boxes(
-                    (H["image_height"], H["image_width"]),
-                    pred_anno,
-                    frame.shape[0],
-                    frame.shape[1]
-                )
+                    pred_anno.rects = rects
+                    pred_anno = rescale_boxes(
+                        (H["image_height"], H["image_width"]),
+                        pred_anno,
+                        frame.shape[0],
+                        frame.shape[1]
+                    )
 
-                results = []
-                for r in pred_anno.rects:
-                    results.append([max(r.y1, 0), max(r.x1, 0), max(r.y2, 0), max(r.x2, 0), r.score])
-                data.append(str([frame_idx+1, results]) + '\n')
-                pred_annolist.append(pred_anno)
-                out.write(new_img)
+                    results = []
+                    for r in pred_anno.rects:
+                        results.append([max(r.y1, 0), max(r.x1, 0), max(r.y2, 0), max(r.x2, 0), r.score])
+                    data.append(str([frame_idx+1, results]) + '\n')
+                    pred_annolist.append(pred_anno)
+                    out.write(new_img)
+                else:
+                    logger.warning('cannot read frame {}'.format(frame_idx))
             
             cap.release()
             out.release()
