@@ -9,3 +9,6 @@ graphs/*
 annos/*
 csv/*
 screens/*
+
+# user-defined
+output_video/
