@@ -9,7 +9,7 @@ opencv-python = ">=3.2"
 scipy = ">=0.15.1"
 pillow = "==2.6.0"
 tqdm = "*"
-tensorflow-gpu = "==1.4.0"
+tensorflow-gpu = "==1.10.0"
 
 [dev-packages]
 
