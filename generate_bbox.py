@@ -43,9 +43,9 @@ def argparser():
     parser.add_argument('--iou-threshold', dest='iou_threshold', default=0.5, type=float)
     parser.add_argument('--tau', dest='tau', default=0.25, type=float)
     parser.add_argument('--min-conf', dest='min_conf', default=0.7, type=float)
-    parser.add_argument('--suppressed', dest='suppressed', action='store_true')
     parser.add_argument('--no-suppressed', dest='suppressed', action='store_false')
-    parser.set_defaults(suppressed=True)
+    parser.add_argument('--output-video', dest='output_video', action='store_true')
+    parser.set_defaults(suppressed=True, output_video=False)
     parser.add_argument('--video-root', dest='video_root', required=True)
     return parser
 
@@ -99,30 +99,38 @@ def main(args, logger):
         video_paths = glob(os.path.join(args.video_root,
                                         '*.{}'.format(args.video_type)))
         for v in video_paths:
-            txtname = '.'.join(v.split('.')[:-1]) + '_detection.txt'
+            video_fullname = '.'.join(v.split('.')[:-1])
+            video_name = video_fullname.split('/')[-1]
+            txtname = video_fullname + '_detection.txt'
+            txtname = '/'.join([args.outputdir, video_name, txtname.split('/')[-1]])
             if os.path.isfile(txtname):
                 logger.info('{} existed, pass'.format(txtname))
                 continue
+            if not os.path.exists(os.path.dirname(txtname)):
+                os.makedirs(os.path.dirname(txtname))
             
             logger.info('Predicting {}'.format(os.path.basename(v)))
-            outputdir = os.path.join(
-                args.outputdir,
-                '{}-skip-{}-count-{}'.format(
-                    datetime.now().strftime('%Y%m%d'),
-                    args.skip_nframe,
-                    args.frame_count or 'all'
-                )
-            )
-            if not os.path.exists(outputdir):
-                os.makedirs(outputdir)
-            
+
             # video operation
             cap = cv2.VideoCapture(v)
             total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             resolution = tuple(map(int, (cap.get(3), cap.get(4))))
             filename = 'detected_{}'.format(os.path.basename(v))
-            out = cv2.VideoWriter(os.path.join(outputdir, filename), fourcc, 15, resolution)
+            
+            # output video
+            if args.output_video:
+                outputdir = os.path.join(
+                    args.outputdir,
+                    '{}-skip-{}-count-{}'.format(
+                        datetime.now().strftime('%Y%m%d'),
+                        args.skip_nframe,
+                        args.frame_count or 'all'
+                    )
+                )
+                if not os.path.exists(outputdir):
+                    os.makedirs(outputdir)
+                out = cv2.VideoWriter(os.path.join(outputdir, filename), fourcc, 15, resolution)
             
             data = []
             logger.info('total {} skip {}'.format(total_frame, args.skip_nframe))
@@ -161,12 +169,14 @@ def main(args, logger):
                         results.append([max(r.y1, 0), max(r.x1, 0), max(r.y2, 0), max(r.x2, 0), r.score])
                     data.append(str([frame_idx+1, results]) + '\n')
                     pred_annolist.append(pred_anno)
-                    out.write(new_img)
+                    if args.output_video:
+                        out.write(new_img)
                 else:
                     logger.warning('cannot read frame {}'.format(frame_idx))
             
             cap.release()
-            out.release()
+            if args.output_video:
+                out.release()
 
             with open(txtname, 'w+') as f:
                 f.writelines(data)
